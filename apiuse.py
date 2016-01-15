@@ -26,10 +26,12 @@ def run(*args):
 
     response = requests.get(url)
     results = response.json()
+    print("TOTAL")
+    pprint(results['total'])
     print("HITS")
     pprint(results['hits'])
-    print("FACETS")
-    pprint(results['facets'])
+    print("SIGNATURE FACET")
+    pprint(results['facets']['signature'])
 
 if __name__ == '__main__':
     import sys
