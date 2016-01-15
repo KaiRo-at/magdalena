@@ -3,7 +3,7 @@
 from __future__ import print_function  # to make print available in py3
 from pprint import pprint  # pretty print python objects
 
-import time
+import datetime
 import urllib
 import json
 import requests
@@ -19,8 +19,7 @@ def run(*args):
     else:
         version = '46.0a1'
 
-    curtime = time.gmtime()
-    timestring  = time.strftime('%Y-%m-%d', curtime)
+    timestring = datetime.datetime.utcnow().strftime('%Y-%m-%d')
     todayfname = datafilename.replace('DATE', timestring)
 
     try:
