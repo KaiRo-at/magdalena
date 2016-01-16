@@ -1,0 +1,11 @@
+Counts and signature reports-style data
+
+<KaiRo> adrian: BTW, do we have an API to only get the count of a search?
+<adrian> KaiRo: you can add &_results_number=0 to your SuperSearch API URL and look at the "total" key in the results
+<KaiRo> adrian: and to get the stuff you use in the signature report, e.g. things like installation count?
+<KaiRo> adrian: I'll try that one,t hanks
+<adrian> I really need to finish writing the Super Search documentation :)
+<adrian> one sec, KaiRo 
+<adrian> KaiRo: https://crash-stats.mozilla.com/api/SuperSearch/?_results_number=0&_aggs.product.version=_cardinality.install_time
+<KaiRo> adrian: sounds great - and yes, docs would be even better than asking you :)
+<adrian> KaiRo: in the results, "cardinality_install_time" is the number of distinct install times, so close to the number of installations
