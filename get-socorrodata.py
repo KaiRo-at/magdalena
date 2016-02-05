@@ -28,9 +28,6 @@ backlog_days = global_defaults['socorrodata_backlog_days'];
 
 # *** URLs and paths ***
 
-# platforms: https://crash-stats.mozilla.com/api/Platforms/ - 'name'
-# https://crash-stats.mozilla.com/api/ADI/?end_date=2016-02-02&platforms=Windows&platforms=Linux&platforms=Mac+OS+X&product=Firefox&start_date=2016-02-01&versions=44.0
-
 # Run the actual meat of the script.
 def run():
     # Get start and end dates
@@ -61,9 +58,11 @@ def run():
         response = requests.get(url)
         ver_results = response.json()
         versions = []
+        verinfo = {}
         for ver in ver_results:
             if ver['product'] == product and ver['end_date'] > day_start:
-                versions.append(ver["version"])
+                versions.append(ver['version'])
+                verinfo[ver['version']] = {'tfactor': 100 / ver['throttle']}
 
         print('Fetch daily data for ' + product + ' ' + ', '.join(versions))
 
@@ -83,7 +82,7 @@ def run():
         for (pver, pvdata) in results['hits'].items():
             for (day, pvd) in pvdata.items():
                 ver = pvd['version']
-                crashes = pvd['report_count']
+                crashes = pvd['report_count'] * verinfo[ver]['tfactor']
                 adu = pvd['adu']
                 if crashes or adi:
                     proddata[ver][day] = {'crashes': crashes, 'adu': adu}
@@ -93,12 +92,28 @@ def run():
             print('--- ERROR: Last day retrieved is ' + maxday + ' while yesterday was ' + day_end + '!')
 
 
-        # Write data back to the file.
+        # Sort and write data back to the file.
+        pd_sorted = OrderedDict()
+        for version in sorted(proddata.iterkeys()):
+           pd_sorted[version] = OrderedDict(sorted(proddata[version].items(), key=lambda t: t[0]))
         with open(fproddata + '.new', 'w') as outfile:
-            json.dump(proddata, outfile)
+            json.dump(pd_sorted, outfile)
 
     # uncomment for backfilling
     #day_start = '2011-01-01';
+
+    # https://crash-stats.mozilla.com/api/ADI/?end_date=2016-02-02&platforms=Windows&platforms=Linux&platforms=Mac+OS+X&product=Firefox&start_date=2016-02-01&versions=44.0
+
+    # Get platforms
+    url = API_URL + 'Platforms/'
+
+    response = requests.get(url)
+    results = response.json()
+    platforms = []
+    for plt in results:
+        platforms.append(plt["name"])
+
+    pprint(platforms)
 
     # By-type daily data
     for (product, channels) in prodchannels.items():
