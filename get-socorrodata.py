@@ -8,6 +8,7 @@ import os
 import urllib
 import json
 import requests
+from collections import OrderedDict
 
 from datautils import API_URL, global_defaults, getMaxBuildAge, getDataPath
 
@@ -27,6 +28,7 @@ backlog_days = global_defaults['socorrodata_backlog_days'];
 
 # *** URLs and paths ***
 
+# platforms: https://crash-stats.mozilla.com/api/Platforms/ - 'name'
 # https://crash-stats.mozilla.com/api/ADI/?end_date=2016-02-02&platforms=Windows&platforms=Linux&platforms=Mac+OS+X&product=Firefox&start_date=2016-02-01&versions=44.0
 
 # Run the actual meat of the script.
@@ -34,8 +36,6 @@ def run():
     # Get start and end dates
     day_start = (datetime.datetime.utcnow() - datetime.timedelta(days=backlog_days)).strftime('%Y-%m-%d')
     day_end = (datetime.datetime.utcnow() - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
-    pprint(day_start)
-    pprint(day_end)
 
     datapath = getDataPath()
     if datapath is None:
@@ -43,9 +43,6 @@ def run():
         import sys
         sys.exit(1)
     os.chdir(datapath);
-
-    pprint(datapath)
-    pprint(API_URL)
 
     # Daily data
     for product in products:
@@ -58,15 +55,50 @@ def run():
         except IOError:
             proddata = {}
 
-        print('Fetch daily data for ' + product + ' ' + 'version, version, ...')
+        # Get all active versions for that product.
+        url = API_URL + 'CurrentVersions/'
 
-        # Actually get the data.
+        response = requests.get(url)
+        ver_results = response.json()
+        versions = []
+        for ver in ver_results:
+            if ver['product'] == product and ver['end_date'] > day_start:
+                versions.append(ver["version"])
+
+        print('Fetch daily data for ' + product + ' ' + ', '.join(versions))
+
+        # Get data for those versions and days.
+        maxday = None
+
+        urlparams = {
+            'product': product,
+            'versions': versions,
+            'from_date': day_start,
+            'to_date': day_end,
+        }
+        url = API_URL + 'CrashesPerAdu/?' + urllib.urlencode(urlparams, True)
+
+        response = requests.get(url)
+        results = response.json()
+        for (pver, pvdata) in results['hits'].items():
+            for (day, pvd) in pvdata.items():
+                ver = pvd['version']
+                crashes = pvd['report_count']
+                adu = pvd['adu']
+                if crashes or adi:
+                    proddata[ver][day] = {'crashes': crashes, 'adu': adu}
+                if maxday is None or maxday < day:
+                    maxday = day
+        if maxday < day_end:
+            print('--- ERROR: Last day retrieved is ' + maxday + ' while yesterday was ' + day_end + '!')
 
 
         # Write data back to the file.
-        with open(fproddata, 'w') as outfile:
+        with open(fproddata + '.new', 'w') as outfile:
             json.dump(proddata, outfile)
 
+    # uncomment for backfilling
+    #day_start = '2011-01-01';
 
     # By-type daily data
     for (product, channels) in prodchannels.items():
@@ -89,9 +121,10 @@ def run():
             # Actually get the data.
 
 
-            # Write data back to the file.
-            with open(fprodtypedata, 'w') as outfile:
-                json.dump(prodtypedata, outfile)
+            # Sort and write data back to the file.
+            ptd_sorted = OrderedDict(sorted(prodtypedata.items(), key=lambda t: t[0]))
+            with open(fprodtypedata + '.new', 'w') as outfile:
+                json.dump(ptd_sorted, outfile)
 
 
 # Avoid running the script when e.g. simply importing the file.
