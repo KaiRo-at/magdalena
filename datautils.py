@@ -8,22 +8,35 @@ global_defaults = {
 }
 
 def getMaxBuildAge(channel, version_overall = False):
+    import datetime
     if channel == 'release':
-        return '12 weeks'
+        return datetime.timedelta(weeks=12)
     elif channel == 'beta':
-        return '4 weeks'
+        return datetime.timedelta(weeks=4)
     elif channel == 'aurora':
         if version_overall:
-            return '9 weeks'
+            return datetime.timedelta(weeks=9)
         else:
-            return '2 weeks'
+            return datetime.timedelta(weeks=2)
     elif channel == 'nightly':
         if version_overall:
-            return '9 weeks'
+            return datetime.timedelta(weeks=9)
         else:
-            return '1 weeks'
+            return datetime.timedelta(weeks=1)
     else:
-        return '1 year'; # almost forever
+        return datetime.timedelta(days=365); # almost forever
+
+def dayList(backlog_days, forced_dates = []):
+    import datetime
+    import re
+    days_to_analyze = [];
+    for daysback in xrange(backlog_days):
+        days_to_analyze.append((datetime.datetime.utcnow() - datetime.timedelta(days=daysback)).strftime('%Y-%m-%d'))
+    for anaday in forced_dates:
+        if re.match(r"\d+-\d+-\d+", anaday) and anaday not in days_to_analyze:
+            days_to_analyze.append(anaday)
+    days_to_analyze.sort()
+    return days_to_analyze
 
 def getDataPath():
     import os

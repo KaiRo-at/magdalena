@@ -9,8 +9,9 @@ import urllib
 import json
 import requests
 from collections import OrderedDict
+import re
 
-from datautils import API_URL, global_defaults, getMaxBuildAge, getDataPath
+from datautils import API_URL, global_defaults, getMaxBuildAge, getDataPath, dayList
 
 # *** data gathering variables ***
 
@@ -85,6 +86,8 @@ def run():
                 crashes = pvd['report_count'] * verinfo[ver]['tfactor']
                 adu = pvd['adu']
                 if crashes or adi:
+                    if ver not in proddata:
+                        proddata[ver] = {}
                     proddata[ver][day] = {'crashes': crashes, 'adu': adu}
                 if maxday is None or maxday < day:
                     maxday = day
@@ -100,20 +103,20 @@ def run():
             json.dump(pd_sorted, outfile)
 
     # uncomment for backfilling
-    #day_start = '2011-01-01';
-
-    # https://crash-stats.mozilla.com/api/ADI/?end_date=2016-02-02&platforms=Windows&platforms=Linux&platforms=Mac+OS+X&product=Firefox&start_date=2016-02-01&versions=44.0
+    #backlog_days = 365;
 
     # Get platforms
     url = API_URL + 'Platforms/'
-
     response = requests.get(url)
     results = response.json()
     platforms = []
     for plt in results:
         platforms.append(plt["name"])
 
-    pprint(platforms)
+    # Get all versions
+    url = API_URL + 'CurrentVersions/'
+    response = requests.get(url)
+    all_versions = response.json()
 
     # By-type daily data
     for (product, channels) in prodchannels.items():
@@ -127,14 +130,65 @@ def run():
             except IOError:
                 prodtypedata = {}
 
-            print('Fetch per-type daily data for ' + product + ' ' + channel.capitalize())
-
             maxday = None
 
             max_build_age = getMaxBuildAge(channel, True)
 
-            # Actually get the data.
+            for anaday in dayList(backlog_days):
+                print('Fetching ' + product + ' ' + channel.capitalize() + ' per-type daily data for ' + anaday)
 
+                # Could use build ID and directly go to Super Search but then we'd need to be able to match ADI with build IDs.
+                # For now, we don't use that and query versions instead. This would need a False flag on getMaxBuildAge.
+                #min_buildid = (datetime.datetime.strptime(anaday, '%Y-%m-%d') - max_build_age).strftime('%Y%m%d000000')
+
+                # Get version list for this day, product and channel.
+                # This can contain more versions that we have data for, so don't exactly put this into the output!
+                min_verstartdate = (datetime.datetime.strptime(anaday, '%Y-%m-%d') - max_build_age).strftime('%Y-%m-%d')
+                versions = []
+                verinfo = {}
+                for ver in all_versions:
+                    if ver['product'] == product and ver['release'] == channel and ver['start_date'] > min_verstartdate:
+                        versions.append(ver['version'])
+                        verinfo[ver['version']] = {'tfactor': 100 / ver['throttle']}
+
+                # Get ADI data.
+                adi = {}
+                urlparams = {
+                    'product': product,
+                    'versions': versions,
+                    'start_date': anaday,
+                    'end_date': anaday,
+                    'platforms': platforms,
+                }
+                url = API_URL + 'ADI/?' + urllib.urlencode(urlparams, True)
+
+                response = requests.get(url)
+                results = response.json()
+                for adidata in results['hits']:
+                   adi[adidata['version']] = adidata['adi_count']
+
+                # Get crash data.
+                urlparams = {
+                    'product': product,
+                    'version': versions,
+                    'date': ['>=' + anaday,
+                             '<' + (datetime.datetime.strptime(anaday, '%Y-%m-%d') + datetime.timedelta(days=1)).strftime('%Y-%m-%d')],
+                    '_aggs.version': 'process_type',
+                    '_results_number': 0,
+                }
+                url = API_URL + 'SuperSearch/?' + urllib.urlencode(urlparams, True)
+
+                response = requests.get(url)
+                results = response.json()
+                for vdata in results['facets']['version']:
+                    # only add the count for this version if the version has ADI.
+                    if vdata['term'] in versions and vdata['term'] in adi:
+                        print(vdata['term'] + ' - ADI: ' + str(adi[vdata['term']]))
+                        nonbrowser = 0
+                        for pdata in vdata['facets']['process_type']:
+                            nonbrowser += pdata['count']
+                            print(' * ' + pdata['term'] + ' - crashes: ' + str(pdata['count'] * verinfo[vdata['term']]['tfactor']) + ' rate: ' + str(100 * pdata['count'] * verinfo[vdata['term']]['tfactor'] / adi[vdata['term']]))
+                        print(' * browser - crashes: ' + str((vdata['count'] - nonbrowser) * verinfo[vdata['term']]['tfactor']) + ' rate: ' + str(100 * (vdata['count'] - nonbrowser) * verinfo[vdata['term']]['tfactor'] / adi[vdata['term']]))
 
             # Sort and write data back to the file.
             ptd_sorted = OrderedDict(sorted(prodtypedata.items(), key=lambda t: t[0]))
