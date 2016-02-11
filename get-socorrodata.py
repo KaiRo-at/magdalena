@@ -34,6 +34,7 @@ def run():
     # Get start and end dates
     day_start = (datetime.datetime.utcnow() - datetime.timedelta(days=backlog_days)).strftime('%Y-%m-%d')
     day_end = (datetime.datetime.utcnow() - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+    forced_dates = []
 
     datapath = getDataPath()
     if datapath is None:
@@ -135,6 +136,10 @@ def run():
             max_build_age = getMaxBuildAge(channel, True)
 
             for anaday in dayList(backlog_days):
+                # Do not fetch data when we already have data for this day (unless it's a forced date).
+                if anaday not in forced_dates and anaday in prodtypedata and prodtypedata[anaday]['adi']:
+                    continue
+
                 print('Fetching ' + product + ' ' + channel.capitalize() + ' per-type daily data for ' + anaday)
 
                 # Could use build ID and directly go to Super Search but then we'd need to be able to match ADI with build IDs.
@@ -161,7 +166,6 @@ def run():
                     'platforms': platforms,
                 }
                 url = API_URL + 'ADI/?' + urllib.urlencode(urlparams, True)
-
                 response = requests.get(url)
                 results = response.json()
                 for adidata in results['hits']:
@@ -173,22 +177,41 @@ def run():
                     'version': versions,
                     'date': ['>=' + anaday,
                              '<' + (datetime.datetime.strptime(anaday, '%Y-%m-%d') + datetime.timedelta(days=1)).strftime('%Y-%m-%d')],
-                    '_aggs.version': 'process_type',
+                    '_aggs.version': ['process_type', 'plugin_hang'],
                     '_results_number': 0,
                 }
                 url = API_URL + 'SuperSearch/?' + urllib.urlencode(urlparams, True)
-
                 response = requests.get(url)
                 results = response.json()
+                bytypedata = { 'versions': [], 'adi': 0, 'crashes': {}}
                 for vdata in results['facets']['version']:
                     # only add the count for this version if the version has ADI.
                     if vdata['term'] in versions and vdata['term'] in adi:
-                        print(vdata['term'] + ' - ADI: ' + str(adi[vdata['term']]))
+                        bytypedata['versions'].append(vdata['term'])
+                        bytypedata['adi'] += adi[vdata['term']]
                         nonbrowser = 0
+                        for hdata in vdata['facets']['plugin_hang']:
+                            if hdata['term'] == 'T':
+                                if 'Hang Plugin' not in bytypedata['crashes']:
+                                    bytypedata['crashes']['Hang Plugin'] = 0
+                                bytypedata['crashes']['Hang Plugin'] += hdata['count'] * verinfo[vdata['term']]['tfactor']
                         for pdata in vdata['facets']['process_type']:
+                            if pdata['term'] == 'plugin':
+                                pname = 'OOP Plugin'
+                            else:
+                                pname = pdata['term'].capitalize()
+                            if pname not in bytypedata['crashes']:
+                                bytypedata['crashes'][pname] = 0
+                            bytypedata['crashes'][pname] += pdata['count'] * verinfo[vdata['term']]['tfactor']
                             nonbrowser += pdata['count']
-                            print(' * ' + pdata['term'] + ' - crashes: ' + str(pdata['count'] * verinfo[vdata['term']]['tfactor']) + ' rate: ' + str(100 * pdata['count'] * verinfo[vdata['term']]['tfactor'] / adi[vdata['term']]))
-                        print(' * browser - crashes: ' + str((vdata['count'] - nonbrowser) * verinfo[vdata['term']]['tfactor']) + ' rate: ' + str(100 * (vdata['count'] - nonbrowser) * verinfo[vdata['term']]['tfactor'] / adi[vdata['term']]))
+                        if 'Browser' not in bytypedata['crashes']:
+                            bytypedata['crashes']['Browser'] = 0
+                        bytypedata['crashes']['Browser'] += (vdata['count'] - nonbrowser) * verinfo[vdata['term']]['tfactor']
+                if 'OOP Plugin' in bytypedata['crashes'] and 'Hang Plugin' in bytypedata['crashes']:
+                    bytypedata['crashes']['OOP Plugin'] -= bytypedata['crashes']['Hang Plugin']
+                bytypedata['versions'].sort()
+                if bytypedata['adi']:
+                    prodtypedata[anaday] = bytypedata
 
             # Sort and write data back to the file.
             ptd_sorted = OrderedDict(sorted(prodtypedata.items(), key=lambda t: t[0]))
