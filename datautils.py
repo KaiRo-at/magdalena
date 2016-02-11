@@ -26,9 +26,10 @@ def getMaxBuildAge(channel, version_overall = False):
     else:
         return datetime.timedelta(days=365); # almost forever
 
-def dayList(backlog_days, forced_dates = []):
+def dayList(backlog_days, forced_dates = None):
     import datetime
     import re
+    forced_dates = forced_dates or []
     days_to_analyze = [];
     for daysback in xrange(backlog_days):
         days_to_analyze.append((datetime.datetime.utcnow() - datetime.timedelta(days=daysback)).strftime('%Y-%m-%d'))
