@@ -10,7 +10,8 @@ from collections import OrderedDict
 import re
 
 from datautils import (getFromAPI, global_defaults, verifyForcedDates,
-                       getMaxBuildAge, getDataPath, dayList)
+                       getMaxBuildAge, getDataPath, dayList,
+                       dayStringBeforeDelta, dayStringAdd)
 
 # *** data gathering variables ***
 
@@ -27,9 +28,6 @@ backlog_days = global_defaults['socorrodata_backlog_days'];
 
 # Run the actual meat of the script.
 def run(*args):
-    # Get start and end dates
-    day_start = (datetime.datetime.utcnow() - datetime.timedelta(days=backlog_days)).strftime('%Y-%m-%d')
-    day_end = (datetime.datetime.utcnow() - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
     forced_dates = verifyForcedDates(args)
 
     datapath = getDataPath()
@@ -64,7 +62,7 @@ def run(*args):
 
             max_build_age = getMaxBuildAge(channel, True)
 
-            for anaday in dayList(backlog_days):
+            for anaday in dayList(backlog_days, forced_dates):
                 # Do not fetch data when we already have data for this day (unless it's a forced date).
                 if anaday not in forced_dates and anaday in prodtypedata and prodtypedata[anaday]['adi']:
                     continue
@@ -77,7 +75,7 @@ def run(*args):
 
                 # Get version list for this day, product and channel.
                 # This can contain more versions that we have data for, so don't exactly put this into the output!
-                min_verstartdate = (datetime.datetime.strptime(anaday, '%Y-%m-%d') - max_build_age).strftime('%Y-%m-%d')
+                min_verstartdate = dayStringBeforeDelta(anaday, max_build_age)
                 versions = []
                 verinfo = {}
                 for ver in all_versions:
@@ -102,7 +100,7 @@ def run(*args):
                     'product': product,
                     'version': versions,
                     'date': ['>=' + anaday,
-                             '<' + (datetime.datetime.strptime(anaday, '%Y-%m-%d') + datetime.timedelta(days=1)).strftime('%Y-%m-%d')],
+                             '<' + dayStringAdd(anaday, days=1)],
                     '_aggs.version': ['process_type', 'plugin_hang'],
                     '_results_number': 0,
                 })

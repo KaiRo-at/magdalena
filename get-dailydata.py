@@ -8,7 +8,8 @@ import os
 import json
 from collections import OrderedDict
 
-from datautils import getFromAPI, global_defaults, getDataPath
+from datautils import (getFromAPI, global_defaults, getDataPath,
+                       beforeTodayString)
 
 # *** data gathering variables ***
 
@@ -23,8 +24,8 @@ backlog_days = global_defaults['socorrodata_backlog_days'];
 # Run the actual meat of the script.
 def run():
     # Get start and end dates
-    day_start = (datetime.datetime.utcnow() - datetime.timedelta(days=backlog_days)).strftime('%Y-%m-%d')
-    day_end = (datetime.datetime.utcnow() - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+    day_start = beforeTodayString(days=backlog_days)
+    day_end = beforeTodayString(days=1)
 
     datapath = getDataPath()
     if datapath is None:

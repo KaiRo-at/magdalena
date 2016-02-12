@@ -32,7 +32,7 @@ def dayList(backlog_days, forced_dates = None):
     forced_dates = forced_dates or []
     days_to_analyze = [];
     for daysback in xrange(backlog_days):
-        days_to_analyze.append((datetime.utcnow() - timedelta(days=daysback)).strftime('%Y-%m-%d'))
+        days_to_analyze.append(beforeTodayString(days=daysback))
     for anaday in forced_dates:
         if re.match(r"\d+-\d+-\d+", anaday) and anaday not in days_to_analyze:
             days_to_analyze.append(anaday)
@@ -68,3 +68,15 @@ def verifyForcedDates(fdates):
             datetime.strptime(fdate, '%Y-%m-%d').strftime('%Y-%m-%d') == fdate):
             force_dates.append(fdate);
     return force_dates
+
+def beforeTodayString(days = 0, weeks = 0):
+    from datetime import datetime, timedelta
+    return (datetime.utcnow() - timedelta(days=days, weeks=weeks)).strftime('%Y-%m-%d')
+
+def dayStringAdd(anaday, days = 0, weeks = 0):
+    from datetime import datetime, timedelta
+    return (datetime.strptime(anaday, '%Y-%m-%d') + timedelta(days=days, weeks=weeks)).strftime('%Y-%m-%d')
+
+def dayStringBeforeDelta(anaday, tdelta):
+    from datetime import datetime
+    return (datetime.strptime(anaday, '%Y-%m-%d') - tdelta).strftime('%Y-%m-%d')
