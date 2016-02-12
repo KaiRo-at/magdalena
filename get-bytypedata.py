@@ -9,7 +9,8 @@ import json
 from collections import OrderedDict
 import re
 
-from datautils import getFromAPI, global_defaults, getMaxBuildAge, getDataPath, dayList
+from datautils import (getFromAPI, global_defaults, verifyForcedDates,
+                       getMaxBuildAge, getDataPath, dayList)
 
 # *** data gathering variables ***
 
@@ -25,11 +26,11 @@ backlog_days = global_defaults['socorrodata_backlog_days'];
 # *** URLs and paths ***
 
 # Run the actual meat of the script.
-def run():
+def run(*args):
     # Get start and end dates
     day_start = (datetime.datetime.utcnow() - datetime.timedelta(days=backlog_days)).strftime('%Y-%m-%d')
     day_end = (datetime.datetime.utcnow() - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
-    forced_dates = []
+    forced_dates = verifyForcedDates(args)
 
     datapath = getDataPath()
     if datapath is None:

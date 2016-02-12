@@ -27,12 +27,12 @@ def getMaxBuildAge(channel, version_overall = False):
         return datetime.timedelta(days=365); # almost forever
 
 def dayList(backlog_days, forced_dates = None):
-    import datetime
+    from datetime import datetime, timedelta
     import re
     forced_dates = forced_dates or []
     days_to_analyze = [];
     for daysback in xrange(backlog_days):
-        days_to_analyze.append((datetime.datetime.utcnow() - datetime.timedelta(days=daysback)).strftime('%Y-%m-%d'))
+        days_to_analyze.append((datetime.utcnow() - timedelta(days=daysback)).strftime('%Y-%m-%d'))
     for anaday in forced_dates:
         if re.match(r"\d+-\d+-\d+", anaday) and anaday not in days_to_analyze:
             days_to_analyze.append(anaday)
@@ -58,3 +58,13 @@ def getFromAPI(api, params = None):
         url += '?' + urllib.urlencode(params, True)
     response = requests.get(url)
     return response.json()
+
+def verifyForcedDates(fdates):
+    from datetime import datetime
+    import re
+    force_dates = [];
+    for fdate in fdates:
+        if (re.match(r"\d+-\d+-\d+", fdate) and
+            datetime.strptime(fdate, '%Y-%m-%d').strftime('%Y-%m-%d') == fdate):
+            force_dates.append(fdate);
+    return force_dates
