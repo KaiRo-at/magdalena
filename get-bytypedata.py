@@ -15,9 +15,6 @@ from datautils import API_URL, global_defaults, getMaxBuildAge, getDataPath, day
 
 # *** data gathering variables ***
 
-# products to gather data from
-products = ['Firefox'] # ['Firefox', 'FennecAndroid']
-
 # products and channels to gather data per-type from
 prodchannels = {
   'Firefox': ['release', 'beta', 'aurora', 'nightly'],
@@ -42,69 +39,6 @@ def run():
         import sys
         sys.exit(1)
     os.chdir(datapath);
-
-    # Daily data
-    for product in products:
-        fproddata = product + '-daily.json'
-
-        try:
-            with open(fproddata, 'r') as infile:
-                print('Read stored ' + product + ' daily data')
-                proddata = json.load(infile)
-        except IOError:
-            proddata = {}
-
-        # Get all active versions for that product.
-        url = API_URL + 'CurrentVersions/'
-
-        response = requests.get(url)
-        ver_results = response.json()
-        versions = []
-        verinfo = {}
-        for ver in ver_results:
-            if ver['product'] == product and ver['end_date'] > day_start:
-                versions.append(ver['version'])
-                verinfo[ver['version']] = {'tfactor': 100 / ver['throttle']}
-
-        print('Fetch daily data for ' + product + ' ' + ', '.join(versions))
-
-        # Get data for those versions and days.
-        maxday = None
-
-        urlparams = {
-            'product': product,
-            'versions': versions,
-            'from_date': day_start,
-            'to_date': day_end,
-        }
-        url = API_URL + 'CrashesPerAdu/?' + urllib.urlencode(urlparams, True)
-
-        response = requests.get(url)
-        results = response.json()
-        for (pver, pvdata) in results['hits'].items():
-            for (day, pvd) in pvdata.items():
-                ver = pvd['version']
-                crashes = pvd['report_count'] * verinfo[ver]['tfactor']
-                adu = pvd['adu']
-                if crashes or adi:
-                    if ver not in proddata:
-                        proddata[ver] = {}
-                    proddata[ver][day] = {'crashes': crashes, 'adu': adu}
-                if maxday is None or maxday < day:
-                    maxday = day
-        if maxday < day_end:
-            print('--- ERROR: Last day retrieved is ' + maxday + ' while yesterday was ' + day_end + '!')
-
-
-        # Sort and write data back to the file.
-        pd_sorted = OrderedDict()
-        for version in sorted(proddata.iterkeys()):
-           pd_sorted[version] = OrderedDict(sorted(proddata[version].items(), key=lambda t: t[0]))
-        with open(fproddata + '.new', 'w') as outfile:
-            json.dump(pd_sorted, outfile)
-
-    # uncomment for backfilling
-    #backlog_days = 365;
 
     # Get platforms
     url = API_URL + 'Platforms/'
