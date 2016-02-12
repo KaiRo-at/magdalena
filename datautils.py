@@ -49,3 +49,12 @@ def getDataPath():
             data_path = testpath
             break
     return data_path
+
+def getFromAPI(api, params = None):
+    import urllib
+    import requests
+    url = API_URL + api + '/'
+    if params:
+        url += '?' + urllib.urlencode(params, True)
+    response = requests.get(url)
+    return response.json()

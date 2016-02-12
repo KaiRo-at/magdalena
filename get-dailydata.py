@@ -5,12 +5,10 @@ from pprint import pprint  # pretty print python objects
 
 import datetime
 import os
-import urllib
 import json
-import requests
 from collections import OrderedDict
 
-from datautils import API_URL, global_defaults, getDataPath
+from datautils import getFromAPI, global_defaults, getDataPath
 
 # *** data gathering variables ***
 
@@ -46,9 +44,7 @@ def run():
             proddata = {}
 
         # Get all active versions for that product.
-        url = API_URL + 'CurrentVersions/'
-        response = requests.get(url)
-        ver_results = response.json()
+        ver_results = getFromAPI('CurrentVersions')
         versions = []
         verinfo = {}
         for ver in ver_results:
@@ -61,16 +57,12 @@ def run():
         # Get data for those versions and days.
         maxday = None
 
-        urlparams = {
+        results = getFromAPI('CrashesPerAdu', {
             'product': product,
             'versions': versions,
             'from_date': day_start,
             'to_date': day_end,
-        }
-        url = API_URL + 'CrashesPerAdu/?' + urllib.urlencode(urlparams, True)
-
-        response = requests.get(url)
-        results = response.json()
+        })
         for (pver, pvdata) in results['hits'].items():
             for (day, pvd) in pvdata.items():
                 ver = pvd['version']

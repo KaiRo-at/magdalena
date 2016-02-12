@@ -5,13 +5,11 @@ from pprint import pprint  # pretty print python objects
 
 import datetime
 import os
-import urllib
 import json
-import requests
 from collections import OrderedDict
 import re
 
-from datautils import API_URL, global_defaults, getMaxBuildAge, getDataPath, dayList
+from datautils import getFromAPI, global_defaults, getMaxBuildAge, getDataPath, dayList
 
 # *** data gathering variables ***
 
@@ -41,17 +39,13 @@ def run():
     os.chdir(datapath);
 
     # Get platforms
-    url = API_URL + 'Platforms/'
-    response = requests.get(url)
-    results = response.json()
+    results = getFromAPI('Platforms')
     platforms = []
     for plt in results:
         platforms.append(plt["name"])
 
     # Get all versions
-    url = API_URL + 'CurrentVersions/'
-    response = requests.get(url)
-    all_versions = response.json()
+    all_versions = getFromAPI('CurrentVersions')
 
     # By-type daily data
     for (product, channels) in prodchannels.items():
@@ -92,31 +86,25 @@ def run():
 
                 # Get ADI data.
                 adi = {}
-                urlparams = {
+                results = getFromAPI('ADI', {
                     'product': product,
                     'versions': versions,
                     'start_date': anaday,
                     'end_date': anaday,
                     'platforms': platforms,
-                }
-                url = API_URL + 'ADI/?' + urllib.urlencode(urlparams, True)
-                response = requests.get(url)
-                results = response.json()
+                })
                 for adidata in results['hits']:
                    adi[adidata['version']] = adidata['adi_count']
 
                 # Get crash data.
-                urlparams = {
+                results = getFromAPI('SuperSearch', {
                     'product': product,
                     'version': versions,
                     'date': ['>=' + anaday,
                              '<' + (datetime.datetime.strptime(anaday, '%Y-%m-%d') + datetime.timedelta(days=1)).strftime('%Y-%m-%d')],
                     '_aggs.version': ['process_type', 'plugin_hang'],
                     '_results_number': 0,
-                }
-                url = API_URL + 'SuperSearch/?' + urllib.urlencode(urlparams, True)
-                response = requests.get(url)
-                results = response.json()
+                })
                 bytypedata = { 'versions': [], 'adi': 0, 'crashes': {}}
                 for vdata in results['facets']['version']:
                     # only add the count for this version if the version has ADI.
