@@ -35,7 +35,7 @@ def run():
     os.chdir(datapath);
 
     for product in products:
-        fproddata = product + '-daily.json'
+        fproddata = product + '-crashes-daily.json'
 
         try:
             with open(fproddata, 'r') as infile:
@@ -83,7 +83,7 @@ def run():
         pd_sorted = OrderedDict()
         for version in sorted(proddata.iterkeys()):
            pd_sorted[version] = OrderedDict(sorted(proddata[version].items(), key=lambda t: t[0]))
-        with open(fproddata + '.new', 'w') as outfile:
+        with open(fproddata, 'w') as outfile:
             json.dump(pd_sorted, outfile)
 
 

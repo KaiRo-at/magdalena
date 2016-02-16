@@ -18,7 +18,7 @@ from datautils import (getFromAPI, global_defaults, verifyForcedDates,
 # products and channels to gather data per-type from
 prodchannels = {
   'Firefox': ['release', 'beta', 'aurora', 'nightly'],
-#  'FennecAndroid': ['release', 'beta', 'aurora', 'nightly']
+  'FennecAndroid': ['release', 'beta', 'aurora', 'nightly']
 }
 
 # for how many days back to get the data
@@ -49,7 +49,7 @@ def run(*args):
     # By-type daily data
     for (product, channels) in prodchannels.items():
         for channel in channels:
-            fprodtypedata = product + '-' + channel + '-bytype.json'
+            fprodtypedata = product + '-' + channel + '-crashes-bytype.json'
 
             try:
                 with open(fprodtypedata, 'r') as infile:
@@ -136,7 +136,7 @@ def run(*args):
 
             # Sort and write data back to the file.
             ptd_sorted = OrderedDict(sorted(prodtypedata.items(), key=lambda t: t[0]))
-            with open(fprodtypedata + '.new', 'w') as outfile:
+            with open(fprodtypedata, 'w') as outfile:
                 json.dump(ptd_sorted, outfile)
 
 
