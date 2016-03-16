@@ -45,13 +45,15 @@ def run():
             proddata = {}
 
         # Get all active versions for that product.
-        ver_results = getFromAPI('CurrentVersions')
+        ver_results = getFromAPI('ProductVersions', {
+            'product': product,
+            'active': 'true',
+        })
         versions = []
         verinfo = {}
-        for ver in ver_results:
-            if ver['product'] == product and ver['end_date'] > day_start:
-                versions.append(ver['version'])
-                verinfo[ver['version']] = {'tfactor': 100 / ver['throttle']}
+        for ver in ver_results['hits']:
+            versions.append(ver['version'])
+            verinfo[ver['version']] = {'tfactor': 100 / ver['throttle']}
 
         print('Fetch daily data for ' + product + ' ' + ', '.join(versions))
 

@@ -29,6 +29,7 @@ backlog_days = global_defaults['socorrodata_backlog_days'];
 # Run the actual meat of the script.
 def run(*args):
     forced_dates = verifyForcedDates(args)
+    anadayList = dayList(backlog_days, forced_dates)
 
     datapath = getDataPath()
     if datapath is None:
@@ -43,8 +44,16 @@ def run(*args):
     for plt in results:
         platforms.append(plt["name"])
 
-    # Get all versions
-    all_versions = getFromAPI('CurrentVersions')
+    # Get a minimum start date older than any needed below:
+    # 1) First element in the anadayList is the earlist day we build stuff for.
+    # 2) For unknown channels, getMaxBuildAge returns a larger age value than for anything else.
+    earliest_mindate = dayStringBeforeDelta(anadayList[0], getMaxBuildAge('none'))
+    # Get all possibly needed versions for all products we look for.
+    all_versions = getFromAPI('ProductVersions', {
+        'product': prodchannels.keys(),
+        'start_date': '>' + earliest_mindate,
+        'is_rapid_beta': 'false',
+    })['hits']
 
     # By-type daily data
     for (product, channels) in prodchannels.items():
@@ -62,7 +71,7 @@ def run(*args):
 
             max_build_age = getMaxBuildAge(channel, True)
 
-            for anaday in dayList(backlog_days, forced_dates):
+            for anaday in anadayList:
                 # Do not fetch data when we already have data for this day (unless it's a forced date).
                 if anaday not in forced_dates and anaday in prodtypedata and prodtypedata[anaday]['adi']:
                     continue
@@ -79,7 +88,7 @@ def run(*args):
                 versions = []
                 verinfo = {}
                 for ver in all_versions:
-                    if ver['product'] == product and ver['release'] == channel and ver['start_date'] > min_verstartdate:
+                    if ver['product'] == product and ver['build_type'] == channel and ver['start_date'] > min_verstartdate:
                         versions.append(ver['version'])
                         verinfo[ver['version']] = {'tfactor': 100 / ver['throttle']}
 
