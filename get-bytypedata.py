@@ -22,7 +22,7 @@ prodchannels = {
 }
 
 # for how many days back to get the data
-backlog_days = global_defaults['socorrodata_backlog_days'];
+backlog_days = global_defaults['socorrodata_backlog_days']
 
 # *** URLs and paths ***
 
