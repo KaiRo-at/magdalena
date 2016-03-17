@@ -56,6 +56,7 @@ def getFromAPI(api, params = None):
     url = API_URL + api + '/'
     if params:
         url += '?' + urllib.urlencode(params, True)
+    #print(url)
     response = requests.get(url)
     return response.json()
 
