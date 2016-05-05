@@ -101,6 +101,12 @@ def run(*args):
                     'end_date': anaday,
                     'platforms': platforms,
                 })
+                if not 'hits' in results:
+                    if 'error' in results:
+                        print('ERROR: ' + results['error'])
+                    else:
+                        print('ERROR: could not fetch ADI correctly!')
+                    continue
                 for adidata in results['hits']:
                    adi[adidata['version']] = adidata['adi_count']
 
@@ -113,6 +119,13 @@ def run(*args):
                     '_aggs.version': ['process_type', 'plugin_hang'],
                     '_results_number': 0,
                 })
+                if not 'facets' in results or not 'version' in results['facets']:
+                    if 'error' in results:
+                        print('ERROR: ' + results['error'])
+                    else:
+                        print('ERROR: no versions facet present!')
+                    continue
+
                 bytypedata = { 'versions': [], 'adi': 0, 'crashes': {}}
                 for vdata in results['facets']['version']:
                     # only add the count for this version if the version has ADI.

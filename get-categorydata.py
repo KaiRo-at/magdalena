@@ -69,16 +69,16 @@ reports = {
     'process_split': True,
     'desktoponly': True,
   },
-#  'address:file': {
-#    # The signature starts with a non-symbolized file@0xFOOBAR piece (potentially after a @0x0 frame).
-#    #'filter' => "split_part(regexp_replace(signatures.signature, '^@0x0 \| ', ''), ' | ', 1) LIKE '%_@0x%'",
-#    'params': {
-#      #This case can't be done with Super Search right now, see https://bugzilla.mozilla.org/show_bug.cgi?id=1257382
-#      'signature': '/^(@0x0 \| )?[^@\|]+@0x/',
-#    },
-#    'process_split': True,
-#    'desktoponly': True,
-#  },
+  'address:file': {
+    # The signature starts with a non-symbolized file@0xFOOBAR piece (potentially after a @0x0 frame).
+    'params': {
+      # See bug 1257382 for how this drove regex support in Super Search
+      # ES regex syntax is documented in https://www.elastic.co/guide/en/elasticsearch/reference/1.4/query-dsl-regexp-query.html#regexp-syntax
+      'signature': '@("@0x0 | ")?[^\@\|]+"@0x".*',
+    },
+    'process_split': True,
+    'desktoponly': True,
+  },
 }
 
 # for how many days back to get the data
@@ -120,6 +120,7 @@ def run(*args):
                     print('Read stored ' + product + ' ' + channel.capitalize() + ' category data')
                     prodcatdata = json.load(infile)
             except IOError:
+                print('No previous category data found.')
                 prodcatdata = {}
 
             try:
@@ -127,6 +128,7 @@ def run(*args):
                     print('Read stored ' + product + ' ' + channel.capitalize() + ' per-type data')
                     prodtypedata = json.load(infile)
             except IOError:
+                print('ERROR: no per-type data found!')
                 prodtypedata = {}
 
             maxday = None
@@ -173,6 +175,12 @@ def run(*args):
                     }
                     ssparams.update(rep['params'])
                     results = getFromAPI('SuperSearch', ssparams)
+                    if not 'facets' in results or not 'version' in results['facets']:
+                        if 'error' in results:
+                            print('ERROR: ' + results['error'])
+                        else:
+                            print('ERROR: no versions facet present!')
+                        continue
                     if rep['process_split']:
                         catdata[catname] = {}
                         for vdata in results['facets']['version']:
